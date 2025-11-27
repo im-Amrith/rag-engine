@@ -13,12 +13,12 @@ USER user
 ENV PATH="/home/user/.local/bin:$PATH"
 WORKDIR /app
 
-# Copy requirements first to leverage cache
-COPY --chown=user requirements.txt .
+# Copy requirements from backend directory
+COPY --chown=user backend/requirements.txt .
 RUN pip install --no-cache-dir -r requirements.txt
 
-# Copy the rest of the application
-COPY --chown=user . .
+# Copy the backend code
+COPY --chown=user backend/ .
 
 # Expose port 7860 for Hugging Face
 EXPOSE 7860
