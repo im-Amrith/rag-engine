@@ -1,3 +1,4 @@
+
 "use client";
 
 import { useState } from "react";
@@ -6,10 +7,11 @@ import UploadZone from "@/components/UploadZone";
 import InspirationGallery from "@/components/InspirationGallery";
 import Navbar from "@/components/Navbar";
 import FloatingLines from "@/components/FloatingLines";
+import HistoryView from "@/components/HistoryView"; // Added this import
 import { motion, AnimatePresence } from "framer-motion";
 import { Sparkles, Search } from "lucide-react";
 export default function Home() {
-  const [activeView, setActiveView] = useState<"generator" | "knowledge">("generator");
+  const [activeView, setActiveView] = useState<"generator" | "knowledge" | "history">("generator"); // Modified this line
 
   // Generator State
   const [query, setQuery] = useState("");
@@ -200,7 +202,7 @@ export default function Home() {
                 </AnimatePresence>
               </div>
             </motion.div>
-          ) : (
+          ) : activeView === "knowledge" ? (
             <motion.div
               key="knowledge"
               initial={{ opacity: 0, y: 20, filter: "blur(10px)" }}
@@ -231,10 +233,26 @@ export default function Home() {
                 </section>
               </div>
             </motion.div>
+          ) : (
+            <motion.div
+              key="history"
+              initial={{ opacity: 0, y: 20, filter: "blur(10px)" }}
+              animate={{ opacity: 1, y: 0, filter: "blur(0px)" }}
+              exit={{ opacity: 0, y: -20, filter: "blur(10px)" }}
+              transition={{ duration: 0.4, ease: "easeOut" }}
+              className="space-y-12"
+            >
+              <div className="text-center space-y-4">
+                <h2 className="text-4xl font-bold text-white tracking-tight">Chat History</h2>
+                <p className="text-zinc-400 max-w-xl mx-auto">
+                  Review your previous prompts and generations.
+                </p>
+              </div>
+              <HistoryView />
+            </motion.div>
           )}
         </AnimatePresence>
       </div>
     </main>
   );
 }
-

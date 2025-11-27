@@ -132,6 +132,12 @@ User Input: {request.query}
         # Update history
         chat_history.append({"user": request.query, "ai": generated_text})
         
+        # Persist to DB
+        try:
+            rag_engine.save_chat(request.query, generated_text)
+        except Exception as e:
+            print(f"Failed to save chat history: {e}")
+        
         return {
             "response": generated_text,
             "context": context_docs, # For "Inspect Brain"
@@ -182,6 +188,10 @@ async def ingest_file(file: UploadFile = File(...)):
 @app.get("/api/documents")
 def list_documents(limit: int = 100):
     return rag_engine.list_documents(limit=limit)
+
+@app.get("/api/history")
+def get_history(limit: int = 50):
+    return rag_engine.get_chat_history(limit=limit)
 
 if __name__ == "__main__":
     uvicorn.run("main:app", host="0.0.0.0", port=8000, reload=True)

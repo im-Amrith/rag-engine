@@ -1,9 +1,9 @@
 import { motion } from "framer-motion";
-import { Sparkles, Database } from "lucide-react";
+import { Sparkles, Database, History } from "lucide-react";
 
 interface NavbarProps {
-    activeView: "generator" | "knowledge";
-    setActiveView: (view: "generator" | "knowledge") => void;
+    activeView: "generator" | "knowledge" | "history";
+    setActiveView: (view: "generator" | "knowledge" | "history") => void;
 }
 
 export default function Navbar({ activeView, setActiveView }: NavbarProps) {
@@ -41,6 +41,23 @@ export default function Navbar({ activeView, setActiveView }: NavbarProps) {
                     )}
                     <span className="relative z-10 flex items-center gap-2">
                         <Database className="w-4 h-4" /> Knowledge Base
+                    </span>
+                </button>
+
+                <button
+                    onClick={() => setActiveView("history")}
+                    className={`relative px-6 py-2.5 rounded-full text-sm font-medium transition-colors duration-300 flex items-center gap-2 ${activeView === "history" ? "text-white" : "text-zinc-500 hover:text-zinc-300"
+                        }`}
+                >
+                    {activeView === "history" && (
+                        <motion.div
+                            layoutId="nav-pill"
+                            className="absolute inset-0 bg-zinc-800 rounded-full border border-white/5"
+                            transition={{ type: "spring", bounce: 0.2, duration: 0.6 }}
+                        />
+                    )}
+                    <span className="relative z-10 flex items-center gap-2">
+                        <History className="w-4 h-4" /> History
                     </span>
                 </button>
             </div>

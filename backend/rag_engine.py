@@ -41,7 +41,13 @@ class RAGEngine:
                     content TEXT,
                     metadata JSONB,
                     embedding vector(384)
-                )
+                );
+                CREATE TABLE IF NOT EXISTS chat_history (
+                    id SERIAL PRIMARY KEY,
+                    user_message TEXT,
+                    ai_message TEXT,
+                    timestamp TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+                );
             """)
 
     def add_document(self, text: str, metadata: Dict):
@@ -99,5 +105,26 @@ class RAGEngine:
                     "preview": row[2] + "..."
                 })
             return {"count": count, "documents": docs}
+
+    def save_chat(self, user_message: str, ai_message: str):
+        with self.conn.cursor() as cur:
+            cur.execute("""
+                INSERT INTO chat_history (user_message, ai_message)
+                VALUES (%s, %s)
+            """, (user_message, ai_message))
+
+    def get_chat_history(self, limit: int = 50):
+        with self.conn.cursor() as cur:
+            cur.execute("""
+                SELECT user_message, ai_message, timestamp 
+                FROM chat_history 
+                ORDER BY timestamp DESC 
+                LIMIT %s
+            """, (limit,))
+            rows = cur.fetchall()
+            return [
+                {"user": row[0], "ai": row[1], "timestamp": row[2].isoformat()} 
+                for row in rows
+            ]
 
 rag_engine = RAGEngine()
