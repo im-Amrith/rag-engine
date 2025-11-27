@@ -1,0 +1,15 @@
+services:
+  - type: web
+    name: rag-engine-backend
+    env: docker
+    region: oregon
+    plan: free
+    dockerfilePath: backend/Dockerfile
+    dockerContext: backend
+    envVars:
+      - key: DATABASE_URL
+        sync: false
+      - key: GOOGLE_API_KEY
+        sync: false
+      - key: PYTHON_VERSION
+        value: 3.10.0

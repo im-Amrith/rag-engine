@@ -1,0 +1,13 @@
+fastapi
+uvicorn
+psycopg2-binary
+python-dotenv
+sentence-transformers
+google-generativeai
+numpy
+pytesseract
+python-multipart
+pypdf
+langchain
+langchain-community
+pillow
