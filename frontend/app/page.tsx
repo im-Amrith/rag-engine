@@ -49,9 +49,10 @@ export default function Home() {
 
   return (
     <main className="min-h-screen bg-black text-white selection:bg-blue-500/30 overflow-hidden relative">
-      <AnimatePresence>
+      <AnimatePresence mode="wait">
         {activeView === "generator" && (
           <motion.div
+            key="generator-bg"
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}
             exit={{ opacity: 0 }}
@@ -59,6 +60,25 @@ export default function Home() {
             className="fixed inset-0 z-0"
           >
             <FloatingLines />
+          </motion.div>
+        )}
+        {activeView === "history" && (
+          <motion.div
+            key="history-bg"
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            transition={{ duration: 0.5 }}
+            className="fixed inset-0 z-0"
+          >
+            <FloatingLines
+              color1="#FFD700" // Gold
+              color2="#FFA500" // Orange
+              enabledWaves={['top', 'bottom']}
+              lineCount={[3, 3]}
+              animationSpeed={0.5}
+              brightness={1.2}
+            />
           </motion.div>
         )}
       </AnimatePresence>
@@ -240,24 +260,15 @@ export default function Home() {
               animate={{ opacity: 1, y: 0, filter: "blur(0px)" }}
               exit={{ opacity: 0, y: -20, filter: "blur(10px)" }}
               transition={{ duration: 0.4, ease: "easeOut" }}
-              className="space-y-12 relative"
+              className="space-y-12"
             >
-              <div className="fixed inset-0 z-0 pointer-events-none">
-                <FloatingLines
-                  color1="#FFD700" // Gold
-                  color2="#FFA500" // Orange
-                  enabledWaves={['top', 'bottom']}
-                  lineCount={[3, 3]}
-                  animationSpeed={0.5}
-                />
-              </div>
-              <div className="text-center space-y-4 relative z-10">
+              <div className="text-center space-y-4">
                 <h2 className="text-4xl font-bold text-white tracking-tight">Chat History</h2>
                 <p className="text-zinc-400 max-w-xl mx-auto">
                   Review your previous prompts and generations.
                 </p>
               </div>
-              <div className="relative z-10">
+              <div>
                 <HistoryView />
               </div>
             </motion.div>
