@@ -240,15 +240,26 @@ export default function Home() {
               animate={{ opacity: 1, y: 0, filter: "blur(0px)" }}
               exit={{ opacity: 0, y: -20, filter: "blur(10px)" }}
               transition={{ duration: 0.4, ease: "easeOut" }}
-              className="space-y-12"
+              className="space-y-12 relative"
             >
-              <div className="text-center space-y-4">
+              <div className="fixed inset-0 z-0 pointer-events-none">
+                <FloatingLines
+                  color1="#FFD700" // Gold
+                  color2="#FFA500" // Orange
+                  enabledWaves={['top', 'bottom']}
+                  lineCount={[3, 3]}
+                  animationSpeed={0.5}
+                />
+              </div>
+              <div className="text-center space-y-4 relative z-10">
                 <h2 className="text-4xl font-bold text-white tracking-tight">Chat History</h2>
                 <p className="text-zinc-400 max-w-xl mx-auto">
                   Review your previous prompts and generations.
                 </p>
               </div>
-              <HistoryView />
+              <div className="relative z-10">
+                <HistoryView />
+              </div>
             </motion.div>
           )}
         </AnimatePresence>
