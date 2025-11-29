@@ -4,8 +4,30 @@ from pydantic import BaseModel
 from typing import List, Optional
 import uvicorn
 import os
+import asyncio
+from contextlib import asynccontextmanager
 
-app = FastAPI(title="RAG Prompt Engine")
+@asynccontextmanager
+async def lifespan(app: FastAPI):
+    # Startup: Start the background task
+    task = asyncio.create_task(keep_db_alive())
+    yield
+    # Shutdown: Cancel the task
+    task.cancel()
+    try:
+        await task
+    except asyncio.CancelledError:
+        pass
+
+async def keep_db_alive():
+    while True:
+        try:
+            rag_engine.keep_alive()
+        except Exception as e:
+            print(f"Background keep-alive error: {e}")
+        await asyncio.sleep(240) # Ping every 4 minutes
+
+app = FastAPI(title="RAG Prompt Engine", lifespan=lifespan)
 
 app.add_middleware(
     CORSMiddleware,

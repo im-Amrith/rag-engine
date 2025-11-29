@@ -127,4 +127,12 @@ class RAGEngine:
                 for row in rows
             ]
 
+    def keep_alive(self):
+        try:
+            with self.conn.cursor() as cur:
+                cur.execute("SELECT 1")
+            print("Pinged DB to keep alive")
+        except Exception as e:
+            print(f"Keep-alive ping failed: {e}")
+
 rag_engine = RAGEngine()
