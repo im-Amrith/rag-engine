@@ -20,7 +20,12 @@ export default function HistoryView() {
             try {
                 const res = await fetch(getApiUrl("/api/history"));
                 const data = await res.json();
-                setHistory(data || []);
+                if (Array.isArray(data)) {
+                    setHistory(data);
+                } else {
+                    console.error("History data is not an array:", data);
+                    setHistory([]);
+                }
             } catch (e) {
                 console.error("Failed to fetch history", e);
             } finally {
@@ -73,7 +78,7 @@ export default function HistoryView() {
                                     <User className="w-4 h-4 text-zinc-400" />
                                 </div>
                                 <div className="flex-1 min-w-0">
-                                    <p className="text-zinc-300 text-sm leading-relaxed line-clamp-2 font-medium">
+                                    <p className="font-['Space_Grotesk'] text-zinc-300 text-sm leading-relaxed line-clamp-2 font-medium">
                                         {chat.user}
                                     </p>
                                     <p className="text-xs text-zinc-600 mt-2">
