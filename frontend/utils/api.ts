@@ -1,5 +1,5 @@
 export const getApiUrl = (path: string) => {
-    const baseUrl = process.env.NEXT_PUBLIC_API_URL || '';
+    const baseUrl = "https://im-amrith-rag-engine-backend.hf.space";
     const cleanPath = path.startsWith('/') ? path : `/${path}`;
     return `${baseUrl}${cleanPath}`;
 };
