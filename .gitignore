@@ -14,3 +14,4 @@ dist/
 *.log
 sources/
 backend/chroma_db/
+client_secret*.json
