@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect, useRef } from "react";
+import { useState, useEffect, useRef, Suspense } from "react";
 import { getApiUrl, getAuthHeaders } from "../utils/api";
 import UploadZone from "@/components/UploadZone";
 import InspirationGallery from "@/components/InspirationGallery";
@@ -11,18 +11,20 @@ import { motion, AnimatePresence } from "framer-motion";
 import { Sparkles, Search, ArrowLeft, Copy, Send, RefreshCw, Mic, MicOff, LogOut } from "lucide-react";
 import { useRouter } from "next/navigation";
 
-export default function Home() {
+function HomeContent() {
   const [activeView, setActiveView] = useState<"generator" | "knowledge" | "history">("generator");
   const router = useRouter();
 
   useEffect(() => {
     // Check for token in URL (OAuth callback)
-    const urlParams = new URLSearchParams(window.location.search);
-    const token = urlParams.get('token');
-    if (token) {
-      localStorage.setItem('token', token);
-      // Clear query params
-      window.history.replaceState({}, document.title, "/");
+    if (typeof window !== 'undefined') {
+      const urlParams = new URLSearchParams(window.location.search);
+      const token = urlParams.get('token');
+      if (token) {
+        localStorage.setItem('token', token);
+        // Clear query params using router to be safe
+        router.replace("/");
+      }
     }
 
     const storedToken = localStorage.getItem("token");
@@ -185,7 +187,7 @@ export default function Home() {
     return (
       <div className="h-screen bg-black text-white flex flex-col overflow-hidden">
         {/* Workspace Header */}
-        <header className="h-14 border-b border-zinc-800 flex items-center justify-between px-6 bg-zinc-950 z-20">
+        <header className="h-14 border-b border-zinc-800 flex items-center justify-between px-6 bg-zinc-900 z-20">
           <div className="flex items-center gap-4">
             <button
               onClick={() => setIsGenerated(false)}
@@ -503,5 +505,13 @@ export default function Home() {
         </AnimatePresence>
       </div>
     </main>
+  );
+}
+
+export default function Home() {
+  return (
+    <Suspense fallback={<div className="min-h-screen bg-black text-white flex items-center justify-center">Loading...</div>}>
+      <HomeContent />
+    </Suspense>
   );
 }
