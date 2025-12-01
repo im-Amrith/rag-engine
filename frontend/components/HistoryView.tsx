@@ -2,15 +2,20 @@
 
 import { useEffect, useState } from "react";
 import { Clock, User, Bot, ChevronDown } from "lucide-react";
-import { getApiUrl } from "../utils/api";
+import { getApiUrl, getAuthHeaders } from "../utils/api";
 
 interface ChatLog {
+    id: number;
     user: string;
     ai: string;
     timestamp: string;
 }
 
-export default function HistoryView() {
+interface HistoryViewProps {
+    onContinue: (id: number) => void;
+}
+
+export default function HistoryView({ onContinue }: HistoryViewProps) {
     const [history, setHistory] = useState<ChatLog[]>([]);
     const [loading, setLoading] = useState(true);
     const [expandedId, setExpandedId] = useState<number | null>(null);
@@ -18,7 +23,9 @@ export default function HistoryView() {
     useEffect(() => {
         const fetchHistory = async () => {
             try {
-                const res = await fetch(getApiUrl("/api/history"));
+                const res = await fetch(getApiUrl("/api/history"), {
+                    headers: getAuthHeaders()
+                });
                 const data = await res.json();
                 if (Array.isArray(data)) {
                     setHistory(data);
@@ -94,13 +101,25 @@ export default function HistoryView() {
                                 <div className="px-6 pb-6 animate-in slide-in-from-top-2 duration-200">
                                     <div className="w-full h-px bg-zinc-800/50 mb-6" />
 
-                                    <div className="flex items-start gap-4">
+                                    <div className="flex items-start gap-4 mb-6">
                                         <div className="p-2 bg-blue-500/10 rounded-lg shrink-0">
                                             <Bot className="w-4 h-4 text-blue-400" />
                                         </div>
                                         <div className="flex-1">
                                             <p className="text-zinc-400 text-sm leading-relaxed whitespace-pre-wrap">{chat.ai}</p>
                                         </div>
+                                    </div>
+
+                                    <div className="flex justify-end">
+                                        <button
+                                            onClick={(e) => {
+                                                e.stopPropagation();
+                                                onContinue(chat.id);
+                                            }}
+                                            className="bg-blue-600 hover:bg-blue-500 text-white px-4 py-2 rounded-lg text-sm font-medium transition-colors flex items-center gap-2"
+                                        >
+                                            Continue Chat
+                                        </button>
                                     </div>
                                 </div>
                             )}

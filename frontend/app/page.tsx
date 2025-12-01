@@ -1,17 +1,40 @@
-
 "use client";
 
-import { useState } from "react";
-import { getApiUrl } from "../utils/api";
+import { useState, useEffect, useRef } from "react";
+import { getApiUrl, getAuthHeaders } from "../utils/api";
 import UploadZone from "@/components/UploadZone";
 import InspirationGallery from "@/components/InspirationGallery";
 import Navbar from "@/components/Navbar";
 import FloatingLines from "@/components/FloatingLines";
-import HistoryView from "@/components/HistoryView"; // Added this import
+import HistoryView from "@/components/HistoryView";
 import { motion, AnimatePresence } from "framer-motion";
-import { Sparkles, Search } from "lucide-react";
+import { Sparkles, Search, ArrowLeft, Copy, Send, RefreshCw, Mic, MicOff, LogOut } from "lucide-react";
+import { useRouter } from "next/navigation";
+
 export default function Home() {
-  const [activeView, setActiveView] = useState<"generator" | "knowledge" | "history">("generator"); // Modified this line
+  const [activeView, setActiveView] = useState<"generator" | "knowledge" | "history">("generator");
+  const router = useRouter();
+
+  useEffect(() => {
+    // Check for token in URL (OAuth callback)
+    const urlParams = new URLSearchParams(window.location.search);
+    const token = urlParams.get('token');
+    if (token) {
+      localStorage.setItem('token', token);
+      // Clear query params
+      window.history.replaceState({}, document.title, "/");
+    }
+
+    const storedToken = localStorage.getItem("token");
+    if (!storedToken) {
+      router.push("/login");
+    }
+  }, [router]);
+
+  const handleLogout = () => {
+    localStorage.removeItem("token");
+    router.push("/login");
+  };
 
   // Generator State
   const [query, setQuery] = useState("");
@@ -22,6 +45,19 @@ export default function Home() {
   const [model, setModel] = useState("gemini-2.5-flash");
   const [mode, setMode] = useState("engineer");
   const [showContext, setShowContext] = useState(false);
+  const [isListening, setIsListening] = useState(false);
+
+  // Workspace State
+  const [isGenerated, setIsGenerated] = useState(false);
+  const [chatInput, setChatInput] = useState("");
+  const [chatHistory, setChatHistory] = useState<{ role: string; content: string }[]>([
+    { role: "ai", content: "I've generated a draft based on your request. How would you like to refine it?" }
+  ]);
+  const chatEndRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    chatEndRef.current?.scrollIntoView({ behavior: "smooth" });
+  }, [chatHistory]);
 
   const handleGenerate = async () => {
     if (!query.trim()) return;
@@ -33,13 +69,23 @@ export default function Home() {
     try {
       const res = await fetch(getApiUrl("/api/generate"), {
         method: "POST",
-        headers: { "Content-Type": "application/json" },
+        headers: {
+          "Content-Type": "application/json",
+          ...getAuthHeaders()
+        },
         body: JSON.stringify({ query, model, mode }),
       });
+
+      if (res.status === 401) {
+        handleLogout();
+        return;
+      }
+
       const data = await res.json();
       setResponse(data.response);
       setSources(data.sources || []);
       setContext(data.context || []);
+      setIsGenerated(true); // Switch to Workspace view
     } catch (error) {
       console.error("Error generating prompt:", error);
     } finally {
@@ -47,6 +93,226 @@ export default function Home() {
     }
   };
 
+  const handleVoiceInput = () => {
+    if (isListening) {
+      setIsListening(false);
+      return;
+    }
+
+    const SpeechRecognition = (window as any).SpeechRecognition || (window as any).webkitSpeechRecognition;
+    if (!SpeechRecognition) {
+      alert("Your browser does not support voice input. Please try Chrome or Edge.");
+      return;
+    }
+
+    const recognition = new SpeechRecognition();
+    recognition.continuous = false;
+    recognition.interimResults = true; // Enable real-time results
+    recognition.lang = "en-US";
+
+    const startQuery = query; // Capture current text
+
+    recognition.onstart = () => {
+      setIsListening(true);
+    };
+
+    recognition.onresult = (event: any) => {
+      const transcript = Array.from(event.results)
+        .map((result: any) => result[0].transcript)
+        .join('');
+
+      setQuery(startQuery + (startQuery && transcript ? " " : "") + transcript);
+    };
+
+    recognition.onend = () => {
+      setIsListening(false);
+    };
+
+    recognition.onerror = (event: any) => {
+      console.error("Speech recognition error", event.error);
+      setIsListening(false);
+    };
+
+    recognition.start();
+  };
+
+  const handleRefine = async () => {
+    if (!chatInput.trim()) return;
+
+    const userMessage = chatInput;
+    setChatInput("");
+
+    // Add user message to chat immediately
+    const newHistory = [...chatHistory, { role: "user", content: userMessage }];
+    setChatHistory(newHistory);
+
+    try {
+      const res = await fetch(getApiUrl("/api/refine"), {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          ...getAuthHeaders()
+        },
+        body: JSON.stringify({
+          current_prompt: response,
+          instruction: userMessage,
+          chat_history: newHistory,
+          model: model
+        }),
+      });
+
+      if (res.status === 401) {
+        handleLogout();
+        return;
+      }
+
+      const data = await res.json();
+
+      // Update chat with AI response
+      setChatHistory(prev => [...prev, { role: "ai", content: data.ai_response }]);
+
+      // Update the prompt editor
+      setResponse(data.refined_prompt);
+
+    } catch (error) {
+      console.error("Error refining prompt:", error);
+      setChatHistory(prev => [...prev, { role: "ai", content: "Sorry, I couldn't refine the prompt. Please try again." }]);
+    }
+  };
+
+  // --- WORKSPACE VIEW (Split Pane) ---
+  if (isGenerated && activeView === "generator") {
+    return (
+      <div className="h-screen bg-black text-white flex flex-col overflow-hidden">
+        {/* Workspace Header */}
+        <header className="h-14 border-b border-zinc-800 flex items-center justify-between px-6 bg-zinc-950 z-20">
+          <div className="flex items-center gap-4">
+            <button
+              onClick={() => setIsGenerated(false)}
+              className="text-zinc-400 hover:text-white transition-colors flex items-center gap-2"
+            >
+              <ArrowLeft className="w-4 h-4" />
+              <span className="text-sm">Back</span>
+            </button>
+            <span className="font-mono font-bold text-lg tracking-tight">Prompt Workspace</span>
+          </div>
+          <div className="flex gap-2">
+            <span className="px-3 py-1 bg-green-500/10 text-green-400 text-xs rounded-full border border-green-500/20 font-mono flex items-center gap-2">
+              <span className="w-2 h-2 rounded-full bg-green-500 animate-pulse"></span>
+              Mode: Refinement
+            </span>
+          </div>
+        </header>
+
+        {/* Main Split Layout */}
+        <main className="flex-1 flex overflow-hidden relative z-10">
+
+          {/* LEFT PANE: The Master Prompt (Editor) */}
+          <div className="flex-1 border-r border-zinc-800 flex flex-col bg-zinc-900/30 backdrop-blur-sm relative">
+            {/* Background for Left Pane */}
+            <div className="absolute inset-0 z-0 opacity-20 pointer-events-none">
+              <FloatingLines
+                color1="#2F4BA2"
+                color2="#E947F5"
+                lineCount={[2]}
+                animationSpeed={0.2}
+              />
+            </div>
+
+            <div className="p-3 border-b border-zinc-800 flex justify-between items-center bg-zinc-900/80 z-10">
+              <span className="text-xs font-mono text-zinc-400 uppercase tracking-widest flex items-center gap-2">
+                <Sparkles className="w-3 h-3" /> Master Prompt
+              </span>
+              <button
+                onClick={() => navigator.clipboard.writeText(response || "")}
+                className="text-zinc-400 hover:text-white flex items-center gap-2 text-xs hover:bg-zinc-800 px-2 py-1 rounded transition-colors"
+              >
+                <Copy className="w-3 h-3" /> Copy
+              </button>
+            </div>
+            <textarea
+              value={response || ""}
+              onChange={(e) => setResponse(e.target.value)}
+              className="flex-1 w-full bg-transparent p-8 outline-none font-mono text-sm leading-relaxed resize-none text-zinc-300 z-10 focus:bg-zinc-900/50 transition-colors"
+              spellCheck="false"
+            />
+          </div>
+
+          {/* RIGHT PANE: The Assistant (Chat) */}
+          <div className="w-[400px] flex flex-col bg-black border-l border-zinc-800 z-20 shadow-2xl">
+            {/* Chat History */}
+            <div className="flex-1 overflow-y-auto p-4 space-y-4">
+              {chatHistory.map((msg, idx) => (
+                <div key={idx} className={`flex ${msg.role === 'user' ? 'justify-end' : 'justify-start'}`}>
+                  <div className={`max-w-[85%] rounded-lg p-3 text-sm leading-relaxed ${msg.role === 'user'
+                    ? 'bg-zinc-800 text-white'
+                    : 'bg-indigo-900/20 text-indigo-200 border border-indigo-500/20'
+                    }`}>
+                    {msg.content}
+                  </div>
+                </div>
+              ))}
+              <div ref={chatEndRef} />
+            </div>
+
+            {/* Chat Input */}
+            <div className="p-4 border-t border-zinc-800 bg-zinc-900/50 backdrop-blur-md">
+              <div className="flex gap-2">
+                <input
+                  value={chatInput}
+                  onChange={(e) => setChatInput(e.target.value)}
+                  onKeyDown={(e) => e.key === 'Enter' && handleRefine()}
+                  placeholder="Refine this prompt..."
+                  className="flex-1 bg-black border border-zinc-700 rounded-md px-3 py-2 text-sm focus:border-indigo-500 outline-none transition-colors text-white placeholder:text-zinc-600"
+                />
+                <button
+                  onClick={handleRefine}
+                  className="bg-white text-black p-2 rounded-md hover:bg-zinc-200 transition-colors"
+                >
+                  <Send className="w-4 h-4" />
+                </button>
+              </div>
+            </div>
+          </div>
+
+        </main>
+      </div>
+    );
+  }
+
+  const handleContinueChat = async (chatId: number) => {
+    setLoading(true);
+    try {
+      const res = await fetch(getApiUrl(`/api/history/${chatId}`), {
+        headers: getAuthHeaders()
+      });
+
+      if (res.status === 401) {
+        handleLogout();
+        return;
+      }
+
+      const data = await res.json();
+
+      // Set the workspace state
+      setResponse(data.ai);
+      setChatHistory([
+        { role: "user", content: data.user },
+        { role: "ai", content: data.ai }
+      ]);
+
+      // Switch to workspace view
+      setIsGenerated(true);
+      setActiveView("generator");
+
+    } catch (error) {
+      console.error("Error fetching chat item:", error);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  // --- HERO VIEW (Original) ---
   return (
     <main className="min-h-screen bg-black text-white selection:bg-blue-500/30 overflow-hidden relative">
       <AnimatePresence mode="wait">
@@ -84,6 +350,17 @@ export default function Home() {
       </AnimatePresence>
 
       <Navbar activeView={activeView} setActiveView={setActiveView} />
+
+      {/* Logout Button */}
+      <div className="fixed top-6 right-6 z-50">
+        <button
+          onClick={handleLogout}
+          className="bg-zinc-900/50 backdrop-blur-md border border-zinc-800 p-2 rounded-full text-zinc-400 hover:text-white hover:bg-red-500/20 hover:border-red-500/50 transition-all"
+          title="Logout"
+        >
+          <LogOut className="w-5 h-5" />
+        </button>
+      </div>
 
       <div className="max-w-5xl mx-auto px-6 pt-32 pb-20 relative z-10">
         <AnimatePresence mode="wait">
@@ -146,6 +423,16 @@ export default function Home() {
                       onKeyDown={(e) => e.key === "Enter" && handleGenerate()}
                     />
                     <button
+                      onClick={handleVoiceInput}
+                      className={`p-2 rounded-full transition-all duration-300 ${isListening
+                        ? "bg-red-500/20 text-red-500 animate-pulse"
+                        : "text-zinc-500 hover:text-white hover:bg-zinc-800"
+                        }`}
+                      title="Voice Input"
+                    >
+                      {isListening ? <MicOff className="w-5 h-5" /> : <Mic className="w-5 h-5" />}
+                    </button>
+                    <button
                       onClick={handleGenerate}
                       disabled={loading}
                       className="bg-white text-black px-6 py-3 rounded-lg font-medium hover:bg-zinc-200 transition-colors disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-2"
@@ -160,66 +447,6 @@ export default function Home() {
                     </button>
                   </div>
                 </div>
-
-                {/* Result Area */}
-                <AnimatePresence>
-                  {response && (
-                    <motion.div
-                      initial={{ opacity: 0, height: 0, scale: 0.95 }}
-                      animate={{ opacity: 1, height: "auto", scale: 1 }}
-                      exit={{ opacity: 0, height: 0, scale: 0.95 }}
-                      className="bg-zinc-900/50 border border-white/10 rounded-xl p-8 overflow-hidden"
-                    >
-                      <h3 className="text-sm font-medium text-zinc-500 mb-4 uppercase tracking-wider">Result</h3>
-                      <div className="prose prose-invert max-w-none mb-6">
-                        <p className="text-lg leading-relaxed whitespace-pre-wrap">{response}</p>
-                      </div>
-
-                      {/* Sources & Context */}
-                      <div className="border-t border-zinc-800 pt-4">
-                        <div className="flex items-center justify-between mb-2">
-                          <span className="text-xs font-medium text-zinc-500 uppercase tracking-wider">Sources Used</span>
-                          <button
-                            onClick={() => setShowContext(!showContext)}
-                            className="text-xs text-blue-400 hover:text-blue-300 transition-colors"
-                          >
-                            {showContext ? "Hide Context" : "Inspect Context"}
-                          </button>
-                        </div>
-
-                        <div className="flex flex-wrap gap-2 mb-4">
-                          {sources.length > 0 ? (
-                            sources.map((source, i) => (
-                              <span key={i} className="text-xs bg-zinc-800 text-zinc-300 px-2 py-1 rounded-md border border-zinc-700">
-                                {source}
-                              </span>
-                            ))
-                          ) : (
-                            <span className="text-xs text-zinc-600 italic">No specific sources cited.</span>
-                          )}
-                        </div>
-
-                        <AnimatePresence>
-                          {showContext && (
-                            <motion.div
-                              initial={{ opacity: 0, height: 0 }}
-                              animate={{ opacity: 1, height: "auto" }}
-                              exit={{ opacity: 0, height: 0 }}
-                              className="bg-black/50 rounded-lg p-4 text-xs text-zinc-400 font-mono overflow-x-auto max-h-60 overflow-y-auto"
-                            >
-                              {context.map((ctx, i) => (
-                                <div key={i} className="mb-4 last:mb-0 border-b border-zinc-800 last:border-0 pb-2 last:pb-0">
-                                  <div className="text-zinc-500 mb-1">Chunk {i + 1}</div>
-                                  {ctx}
-                                </div>
-                              ))}
-                            </motion.div>
-                          )}
-                        </AnimatePresence>
-                      </div>
-                    </motion.div>
-                  )}
-                </AnimatePresence>
               </div>
             </motion.div>
           ) : activeView === "knowledge" ? (
@@ -269,7 +496,7 @@ export default function Home() {
                 </p>
               </div>
               <div>
-                <HistoryView />
+                <HistoryView onContinue={handleContinueChat} />
               </div>
             </motion.div>
           )}

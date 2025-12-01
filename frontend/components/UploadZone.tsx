@@ -6,7 +6,7 @@ import { Upload, FileText, Image as ImageIcon, Loader2 } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
 import { clsx } from "clsx";
 import { twMerge } from "tailwind-merge";
-import { getApiUrl } from "../utils/api";
+import { getApiUrl, getAuthHeaders } from "../utils/api";
 
 export function cn(...inputs: (string | undefined | null | false)[]) {
     return twMerge(clsx(inputs));
@@ -28,6 +28,7 @@ export default function UploadZone() {
         try {
             const response = await fetch(getApiUrl("/api/ingest/file"), {
                 method: "POST",
+                headers: getAuthHeaders(),
                 body: formData,
             });
 

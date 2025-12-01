@@ -9,8 +9,8 @@ import urllib.parse
 load_dotenv()
 
 class RAGEngine:
-    def __init__(self):
-        self.db_url = os.getenv("DATABASE_URL")
+    def __init__(self, db_url=None):
+        self.db_url = db_url or os.getenv("DATABASE_URL")
         if not self.db_url:
             raise ValueError("DATABASE_URL environment variable is not set")
         
@@ -36,39 +36,68 @@ class RAGEngine:
         with self.conn.cursor() as cur:
             cur.execute("CREATE EXTENSION IF NOT EXISTS vector")
             cur.execute("""
+                CREATE TABLE IF NOT EXISTS users (
+                    id SERIAL PRIMARY KEY,
+                    email VARCHAR(255) UNIQUE NOT NULL,
+                    hashed_password VARCHAR(255) NOT NULL,
+                    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+                );
                 CREATE TABLE IF NOT EXISTS documents (
                     id SERIAL PRIMARY KEY,
+                    user_id INTEGER REFERENCES users(id),
                     content TEXT,
                     metadata JSONB,
                     embedding vector(384)
                 );
                 CREATE TABLE IF NOT EXISTS chat_history (
                     id SERIAL PRIMARY KEY,
+                    user_id INTEGER REFERENCES users(id),
                     user_message TEXT,
                     ai_message TEXT,
                     timestamp TIMESTAMP DEFAULT CURRENT_TIMESTAMP
                 );
             """)
+            # Auto-migration for existing tables
+            try:
+                cur.execute("ALTER TABLE documents ADD COLUMN IF NOT EXISTS user_id INTEGER REFERENCES users(id)")
+                cur.execute("ALTER TABLE chat_history ADD COLUMN IF NOT EXISTS user_id INTEGER REFERENCES users(id)")
+            except Exception as e:
+                print(f"Migration warning: {e}")
 
-    def add_document(self, text: str, metadata: Dict):
+    def create_user(self, email, hashed_password):
+        with self.conn.cursor() as cur:
+            try:
+                cur.execute("INSERT INTO users (email, hashed_password) VALUES (%s, %s) RETURNING id", (email, hashed_password))
+                return cur.fetchone()[0]
+            except psycopg2.IntegrityError:
+                self.conn.rollback()
+                return None
+
+    def get_user(self, email):
+        with self.conn.cursor() as cur:
+            cur.execute("SELECT id, email, hashed_password FROM users WHERE email = %s", (email,))
+            return cur.fetchone()
+
+    def add_document(self, text: str, metadata: Dict, user_id: int):
         embedding = self.model.encode(text).tolist()
         
         with self.conn.cursor() as cur:
             cur.execute("""
-                INSERT INTO documents (content, metadata, embedding)
-                VALUES (%s, %s, %s)
-            """, (text, json.dumps(metadata), embedding))
+                INSERT INTO documents (content, metadata, embedding, user_id)
+                VALUES (%s, %s, %s, %s)
+            """, (text, json.dumps(metadata), embedding, user_id))
 
-    def query(self, query_text: str, n_results: int = 5):
+    def query(self, query_text: str, user_id: int, n_results: int = 5):
         query_embedding = self.model.encode(query_text).tolist()
         
         with self.conn.cursor() as cur:
             cur.execute("""
                 SELECT content, metadata, 1 - (embedding <=> %s::vector) as similarity
                 FROM documents
+                WHERE user_id = %s
                 ORDER BY embedding <=> %s::vector
                 LIMIT %s
-            """, (query_embedding, query_embedding, n_results))
+            """, (query_embedding, user_id, query_embedding, n_results))
             
             rows = cur.fetchall()
             
@@ -79,10 +108,10 @@ class RAGEngine:
             }
             return results
 
-    def list_documents(self, limit: int = 100):
+    def list_documents(self, user_id: int, limit: int = 100):
         with self.conn.cursor() as cur:
             # Get total unique documents (files)
-            cur.execute("SELECT count(DISTINCT metadata->>'source') FROM documents")
+            cur.execute("SELECT count(DISTINCT metadata->>'source') FROM documents WHERE user_id = %s", (user_id,))
             count = cur.fetchone()[0]
             
             # Get unique documents by source
@@ -92,8 +121,9 @@ class RAGEngine:
                     metadata, 
                     left(content, 200) 
                 FROM documents 
+                WHERE user_id = %s
                 LIMIT %s
-            """, (limit,))
+            """, (user_id, limit,))
             
             rows = cur.fetchall()
             
@@ -106,26 +136,39 @@ class RAGEngine:
                 })
             return {"count": count, "documents": docs}
 
-    def save_chat(self, user_message: str, ai_message: str):
+    def save_chat(self, user_message: str, ai_message: str, user_id: int):
         with self.conn.cursor() as cur:
             cur.execute("""
-                INSERT INTO chat_history (user_message, ai_message)
-                VALUES (%s, %s)
-            """, (user_message, ai_message))
+                INSERT INTO chat_history (user_message, ai_message, user_id)
+                VALUES (%s, %s, %s)
+            """, (user_message, ai_message, user_id))
 
-    def get_chat_history(self, limit: int = 50):
+    def get_chat_history(self, user_id: int, limit: int = 50):
         with self.conn.cursor() as cur:
             cur.execute("""
-                SELECT user_message, ai_message, timestamp 
+                SELECT id, user_message, ai_message, timestamp 
                 FROM chat_history 
+                WHERE user_id = %s
                 ORDER BY timestamp DESC 
                 LIMIT %s
-            """, (limit,))
+            """, (user_id, limit))
             rows = cur.fetchall()
             return [
-                {"user": row[0], "ai": row[1], "timestamp": row[2].isoformat()} 
+                {"id": row[0], "user": row[1], "ai": row[2], "timestamp": row[3].isoformat()} 
                 for row in rows
             ]
+
+    def get_chat_item(self, chat_id: int, user_id: int):
+        with self.conn.cursor() as cur:
+            cur.execute("""
+                SELECT id, user_message, ai_message, timestamp
+                FROM chat_history
+                WHERE id = %s AND user_id = %s
+            """, (chat_id, user_id))
+            row = cur.fetchone()
+            if row:
+                return {"id": row[0], "user": row[1], "ai": row[2], "timestamp": row[3].isoformat()}
+            return None
 
     def keep_alive(self):
         try:

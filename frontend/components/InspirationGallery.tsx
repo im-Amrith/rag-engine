@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from "react";
 import { FileText, Image as ImageIcon } from "lucide-react";
-import { getApiUrl } from "../utils/api";
+import { getApiUrl, getAuthHeaders } from "../utils/api";
 
 interface Doc {
     id: string;
@@ -18,7 +18,10 @@ export default function InspirationGallery() {
 
     const fetchDocs = async () => {
         try {
-            const res = await fetch(getApiUrl("/api/documents"));
+            const res = await fetch(getApiUrl("/api/documents"), {
+                headers: getAuthHeaders()
+            });
+            if (res.status === 401) return;
             const data = await res.json();
             setDocs(data.documents || []);
         } catch (e) {
