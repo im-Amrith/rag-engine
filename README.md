@@ -16,48 +16,67 @@
 
 ---
 
-## 📖 Overview
+# 🧠 RAG Prompt Engine
 
-**RAG Prompt Engine** is a sophisticated workspace designed to bridge the gap between human intent and LLM understanding. By leveraging a custom knowledge base (PDFs, Images, Text), this tool generates highly context-aware prompts that outperform generic inputs.
-
-It features a modern, "Antigravity" aesthetic with glassmorphism UI, real-time voice input, and a dual-pane workspace for iterative refinement.
+A high-performance, aesthetically pleasing Prompt Engineering platform powered by Retrieval-Augmented Generation (RAG). This tool helps you craft the perfect prompts for Large Language Models by leveraging your own knowledge base.
 
 ## ✨ Key Features
 
-| Feature | Description |
-| :--- | :--- |
-| **🧠 RAG Intelligence** | Upload custom documents (PDF, TXT, IMG) to ground the AI's generation in your specific data. |
-| **🗣️ Voice Input** | Dictate complex ideas naturally. The engine transcribes and structures your thoughts in real-time. |
-| **🧪 Prompt Lab** | A split-pane IDE to generate, test, and refining prompts with an AI "Co-pilot" chat. |
-| **🎭 Specialized Personas** | Switch between **Engineer**, **Critic**, and **Direct Answer** modes to get the exact output style you need. |
-| **🔐 Secure Auth** | Enterprise-ready authentication via Google, GitHub, or Email/Password (OAuth + JWT). |
-| **🎨 Modern UX** | Built with Framer Motion and Three.js for a fluid, responsive, and visually stunning experience. |
+*   **RAG-Powered Generation:** Upload your own documents (PDFs, Images, Text) to create a custom knowledge base. The engine uses this context to generate highly specific and relevant prompts.
+*   **Multi-Model Support:** Choose from the latest Gemini models to suit your speed and intelligence needs.
+*   ** specialized Modes:** Switch between different personas (Engineer, Critic, Direct) to get the exact output you need.
+*   **Voice Input:** Dictate your prompt ideas directly into the app for a seamless workflow.
+*   **Interactive Refinement:** Don't settle for the first draft. Use the built-in chat workspace to iteratively refine and polish your prompts with the AI.
+*   **Chat History:** Access your previous sessions and pick up right where you left off.
+*   **Secure Authentication:** Support for Email/Password registration as well as Google and GitHub OAuth.
+*   **Modern UI:** A stunning, responsive interface featuring glassmorphism, animated backgrounds, and smooth transitions.
 
-## 🤖 Supported Models
+## 🤖 Available Models
 
-The engine supports dynamic model switching to balance cost, speed, and reasoning capabilities:
+Select the best model for your task:
 
-* **Gemini 2.5 Pro (Thinking):** High-reasoning model for complex prompt architecture.
-* **Gemini 2.5 Flash:** The perfect balance of latency and intelligence.
-* **Gemini 2.5 Flash-Lite:** Ultra-fast generation for rapid prototyping.
-* **Gemini 1.5 Pro/Flash:** Standard models for high-context tasks.
+*   **Gemini 2.5 Pro (Thinking):** High-reasoning model for complex prompt architecture.
+*   **Gemini 2.5 Flash (Best Value):** The perfect balance of speed and intelligence.
+*   **Gemini 2.5 Flash-Lite (Fastest):** Ultra-fast generation for quick iterations.
+*   **Gemini 2.0 Flash:** Previous generation speed-optimized model.
+*   **Gemini 1.5 Pro:** High-context window model for massive knowledge bases.
+*   **Gemini 1.5 Flash:** Efficient and capable standard model.
 
-## 🛠️ Technical Architecture
+## 🎭 Generation Modes
 
-### Tech Stack
+*   **🛠️ Prompt Engineer:**
+    *   **Goal:** Create the ultimate prompt.
+    *   **Behavior:** Rewrites your rough input into a structured, highly effective prompt using advanced techniques like Chain of Thought. It explicitly instructs the model on formatting and how to use the knowledge base.
 
-* **Frontend:** Next.js 15, React 19, TailwindCSS, Framer Motion, Lucide Icons.
-* **Backend:** FastAPI (Python), Uvicorn.
-* **AI & ML:** Google Generative AI (Gemini), LangChain.
-* **Database:** PostgreSQL (Neon) with `pgvector` extension for semantic search.
-* **Infrastructure:** Netlify (Frontend), Hugging Face Spaces (Backend/Docker).
+*   **🧐 Critic Mode:**
+    *   **Goal:** Improve your thinking.
+    *   **Behavior:** Acts as a critical reviewer. It analyzes your request and the provided context to identify gaps, vague terms, or potential misunderstandings. It offers constructive feedback rather than just writing the prompt for you.
 
-### System Flow
-```mermaid
-graph LR
-    A[User Input/Voice] --> B(Next.js Frontend)
-    B --> C{FastAPI Backend}
-    C --> D[Vector DB (Neon)]
-    C --> E[Gemini LLM]
-    D -.->|Retrieve Context| C
-    E -->|Generate Prompt| B
+*   **💡 Direct Answer:**
+    *   **Goal:** Get answers fast.
+    *   **Behavior:** Acts as a Knowledge Base Assistant. It answers your question directly using **ONLY** the provided context, citing specific documents and pages. Perfect for extracting information without generating a prompt.
+
+## 🎙️ Voice Input
+
+Press the microphone icon in the input bar to activate voice recognition. Speak your request naturally, and the engine will transcribe it in real-time.
+
+## 🛠️ Tech Stack
+
+*   **Frontend:** Next.js 15, React 19, TailwindCSS, Framer Motion, Three.js (for animated backgrounds).
+*   **Backend:** FastAPI, Python, Google Generative AI (Gemini), PostgreSQL (pgvector) for vector storage.
+*   **Authentication:** Authlib (OAuth), Passlib (bcrypt).
+*   **Deployment:** Netlify (Frontend), Hugging Face Spaces (Backend).
+
+## 🚀 Getting Started
+
+1.  **Clone the repository.**
+2.  **Backend Setup:**
+    *   Navigate to `/backend`.
+    *   Install dependencies: `pip install -r requirements.txt`.
+    *   Set up `.env` with API keys and Database URL.
+    *   Run: `python main.py`.
+3.  **Frontend Setup:**
+    *   Navigate to `/frontend`.
+    *   Install dependencies: `npm install`.
+    *   Set up `.env.local` with `NEXT_PUBLIC_API_URL`.
+    *   Run: `npm run dev`.
